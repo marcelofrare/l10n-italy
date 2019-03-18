@@ -34,7 +34,7 @@ La mailing list del team OCA Italia: `italy@odoo-community.org`
 
 Per iscriverti, visita [la pagina delle mailing list OCA](https://odoo-community.org/groups), cerca "Italy" e iscriviti.
 
-#### Revisioni
+#### Revisioni:
 
 Puoi trovare [qui](https://github.com/OCA/l10n-italy/pulls?q=is%3Apr+is%3Aopen+label%3A%22needs+review%22) tutti i contributi a OCA/l10n-italy che hanno bisogno di revisione.
 
