@@ -19,6 +19,10 @@ class EInvoiceImportFileWizard(models.TransientModel):
 
     l10n_it_edi_attachment = fields.Binary()
     l10n_it_edi_attachment_filename = fields.Char()
+    skipped_info = fields.Text(
+        string="Skipped Files",
+        readonly=True,
+    )
 
     def action_import(self):
         self.ensure_one()
@@ -26,6 +30,7 @@ class EInvoiceImportFileWizard(models.TransientModel):
         zip_binary = base64.b64decode(self.l10n_it_edi_attachment)
         zip_io = io.BytesIO(zip_binary)
         moves = self.env["account.move"]
+        skipped_files = []
 
         with zipfile.ZipFile(zip_io, "r") as zip_ref:
             for member in zip_ref.infolist():
@@ -61,6 +66,7 @@ class EInvoiceImportFileWizard(models.TransientModel):
 
                         if not attachment._is_l10n_it_edi_import_file():
                             _logger.info(f"Skipping {filename}, not an XML/P7M file")
+                            skipped_files.append(filename)
                             attachment.unlink()
                             continue
 
@@ -87,6 +93,20 @@ class EInvoiceImportFileWizard(models.TransientModel):
 
                             move._l10n_it_edi_import_invoice(move, file_data, True)
                             moves |= move
+
+        if skipped_files:
+            skipped_list = "\n".join(f"- {f}" for f in skipped_files)
+            self.skipped_info = (
+                self.env._("The following files were skipped (not valid XML/P7M):\n%s")
+                % skipped_list
+            )
+            return {
+                "type": "ir.actions.act_window",
+                "res_model": self._name,
+                "res_id": self.id,
+                "view_mode": "form",
+                "target": "new",
+            }
 
         return {
             "view_type": "form",
