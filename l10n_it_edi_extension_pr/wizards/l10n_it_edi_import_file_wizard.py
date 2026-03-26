@@ -7,8 +7,9 @@ import logging
 import os
 import zipfile
 
-from odoo import fields, models
+from odoo import _, fields, models
 from odoo.exceptions import UserError
+from odoo.tools import html_escape
 
 _logger = logging.getLogger(__name__)
 
@@ -19,10 +20,6 @@ class EInvoiceImportFileWizard(models.TransientModel):
 
     l10n_it_edi_attachment = fields.Binary()
     l10n_it_edi_attachment_filename = fields.Char()
-    skipped_info = fields.Text(
-        string="Skipped Files",
-        readonly=True,
-    )
 
     def action_import(self):
         self.ensure_one()
@@ -93,26 +90,49 @@ class EInvoiceImportFileWizard(models.TransientModel):
 
                             move._l10n_it_edi_import_invoice(move, file_data, True)
                             moves |= move
-
-        if skipped_files:
-            skipped_list = "\n".join(f"- {f}" for f in skipped_files)
-            self.skipped_info = (
-                self.env._("The following files were skipped (not valid XML/P7M):\n%s")
-                % skipped_list
-            )
-            return {
-                "type": "ir.actions.act_window",
-                "res_model": self._name,
-                "res_id": self.id,
-                "view_mode": "form",
-                "target": "new",
-            }
-
-        return {
-            "view_type": "form",
-            "name": "E-invoices",
-            "view_mode": "list,form",
-            "res_model": "account.move",
+        action = {
+            "name": _("E-invoices"),
             "type": "ir.actions.act_window",
+            "res_model": "account.move",
+            "view_mode": "list,form",
+            "views": [[False, "list"], [False, "form"]],
             "domain": [("id", "in", moves.ids)],
         }
+
+        if skipped_files:
+            skipped_list_txt = "\n".join(f"- {f}" for f in skipped_files)
+            skipped_info_txt = (
+                _("The following files were skipped (not valid XML/P7M):\n%s")
+                % skipped_list_txt
+            )
+
+            skipped_list_html = "".join(
+                f"<li>{html_escape(f)}</li>" for f in skipped_files
+            )
+            skipped_info_html = (
+                _("The following files were skipped (not valid XML/P7M):<ul>%s</ul>")
+                % skipped_list_html
+            )
+
+            # Create activity for the current user
+            self.env["mail.activity"].create(
+                {
+                    "activity_type_id": self.env.ref("mail.mail_activity_data_todo").id,
+                    "note": skipped_info_html,
+                    "summary": _("Partial import: skipped files"),
+                    "user_id": self.env.uid,
+                    "res_id": self.env.user.partner_id.id,
+                    "res_model_id": self.env["ir.model"]._get_id("res.partner"),
+                }
+            )
+            return {
+                "type": "ir.actions.client",
+                "tag": "display_notification",
+                "params": {
+                    "title": _("Some e-invoices were not imported"),
+                    "message": skipped_info_txt,
+                    "sticky": True,
+                    "next": action,
+                },
+            }
+        return action
