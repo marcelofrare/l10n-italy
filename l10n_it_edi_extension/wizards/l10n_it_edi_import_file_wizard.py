@@ -7,7 +7,7 @@ import logging
 import os
 import zipfile
 
-from odoo import fields, models
+from odoo import _, fields, models
 from odoo.exceptions import UserError
 
 _logger = logging.getLogger(__name__)
@@ -93,6 +93,14 @@ class EInvoiceImportFileWizard(models.TransientModel):
 
                             move._l10n_it_edi_import_invoice(move, file_data, True)
                             moves |= move
+        action = {
+            "type": "ir.actions.act_window",
+            "view_type": "form",
+            "name": "E-invoices",
+            "view_mode": "list,form",
+            "res_model": "account.move",
+            "domain": [("id", "in", moves.ids)],
+        }
 
         if skipped_files:
             skipped_list = "\n".join(f"- {f}" for f in skipped_files)
@@ -100,19 +108,15 @@ class EInvoiceImportFileWizard(models.TransientModel):
                 self.env._("The following files were skipped (not valid XML/P7M):\n%s")
                 % skipped_list
             )
+            # crea activity
             return {
-                "type": "ir.actions.act_window",
-                "res_model": self._name,
-                "res_id": self.id,
-                "view_mode": "form",
-                "target": "new",
+                "type": "ir.actions.client",
+                "tag": "display_notification",
+                "params": {
+                    "title": _("Alcune fatture non impo"),
+                    "message": self.skipped_info,
+                    "sticky": True,
+                    "next": action,
+                },
             }
-
-        return {
-            "view_type": "form",
-            "name": "E-invoices",
-            "view_mode": "list,form",
-            "res_model": "account.move",
-            "type": "ir.actions.act_window",
-            "domain": [("id", "in", moves.ids)],
-        }
+        return action
