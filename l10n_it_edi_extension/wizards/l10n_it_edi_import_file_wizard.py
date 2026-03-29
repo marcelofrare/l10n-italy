@@ -93,8 +93,22 @@ class EInvoiceImportFileWizard(models.TransientModel):
 
                             move._l10n_it_edi_import_invoice(move, file_data, True)
                             moves |= move
-        action = {
-            "type": "ir.actions.act_window",
+
+        if skipped_files:
+            skipped_list = "\n".join(f"- {f}" for f in skipped_files)
+            self.skipped_info = (
+                self.env._("The following files were skipped (not valid XML/P7M):\n%s")
+                % skipped_list
+            )
+            return {
+                "type": "ir.actions.act_window",
+                "res_model": self._name,
+                "res_id": self.id,
+                "view_mode": "form",
+                "target": "new",
+            }
+
+        return {
             "view_type": "form",
             "name": "E-invoices",
             "view_mode": "list,form",
