@@ -7,7 +7,7 @@ import logging
 import os
 import zipfile
 
-from odoo import fields, models
+from odoo import _, fields, models
 from odoo.exceptions import UserError
 
 _logger = logging.getLogger(__name__)
@@ -113,6 +113,24 @@ class EInvoiceImportFileWizard(models.TransientModel):
             "name": "E-invoices",
             "view_mode": "list,form",
             "res_model": "account.move",
-            "type": "ir.actions.act_window",
             "domain": [("id", "in", moves.ids)],
         }
+
+        if skipped_files:
+            skipped_list = "\n".join(f"- {f}" for f in skipped_files)
+            self.skipped_info = (
+                self.env._("The following files were skipped (not valid XML/P7M):\n%s")
+                % skipped_list
+            )
+            # crea activity
+            return {
+                "type": "ir.actions.client",
+                "tag": "display_notification",
+                "params": {
+                    "title": _("Alcune fatture non impo"),
+                    "message": self.skipped_info,
+                    "sticky": True,
+                    "next": action,
+                },
+            }
+        return action
